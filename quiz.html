@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Offline Quiz Reviewer (No AI)</title>
+  <title>AI Quiz Reviewer - Quiz Screen</title>
 
   <!-- Bootstrap 5 CSS & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -63,20 +63,48 @@
     }
 
     @media print {
-      body * { visibility: hidden; }
-      #printArea, #printArea * { visibility: visible; }
+      body * {
+        visibility: hidden;
+      }
+      #printArea, #printArea * {
+        visibility: visible;
+      }
       #printArea {
         display: block !important;
         position: absolute;
-        left: 0; top: 0; width: 100%;
-        color: #000; background: #fff;
-        padding: 20px; font-family: Arial, sans-serif;
+        left: 0;
+        top: 0;
+        width: 100%;
+        color: #000;
+        background: #fff;
+        padding: 20px;
+        font-family: Arial, sans-serif;
       }
-      .pdf-header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-      .pdf-item { margin-bottom: 18px; page-break-inside: avoid; }
-      .pdf-question { font-weight: bold; font-size: 15px; margin-bottom: 6px; }
-      .pdf-options { margin-left: 20px; font-size: 14px; }
-      .pdf-answer { margin-left: 20px; font-weight: bold; color: #000; font-size: 14px; margin-top: 4px; }
+      .pdf-header {
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+      .pdf-item {
+        margin-bottom: 18px;
+        page-break-inside: avoid;
+      }
+      .pdf-question {
+        font-weight: bold;
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+      .pdf-options {
+        margin-left: 20px;
+        font-size: 14px;
+      }
+      .pdf-answer {
+        margin-left: 20px;
+        font-weight: bold;
+        color: #000;
+        font-size: 14px;
+        margin-top: 4px;
+      }
     }
   </style>
 </head>
@@ -86,21 +114,59 @@
   <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
 
+      <!-- ================= TOP NAVIGATION BAR (HOME BUTTON) ================= -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-house-door-fill me-1"></i> Home / Upload
+        </a>
+        <span class="text-muted small fw-semibold">AI Quiz Reviewer</span>
+      </div>
+
       <!-- ================= LOADING SCREEN ================= -->
       <div id="loadingContainer" class="card quiz-card p-5 text-center">
         <div class="spinner-border text-primary mx-auto mb-3" style="width: 3rem; height: 3rem;" role="status">
           <span class="visually-hidden">Loading...</span>
         </div>
-        <h5 class="fw-bold mb-2">Ina-analyze ang iyong Reviewer...</h5>
-        <p class="text-muted small mb-0">Gumagawa ng mga katanungan mula sa text parser. Sandali lamang...</p>
+        <h5 id="loadingStatusText" class="fw-bold mb-2">Binabasa ng AI ang iyong Reviewer...</h5>
+        <p class="text-muted small mb-2">Gumagawa ng mga natatanging exam questions (Terms, Dates, Definitions). Sandali lamang...</p>
+        
+        <!-- Live Model & Limit Info during Loading -->
+        <div class="p-2 bg-light rounded-3 mt-2 text-secondary small">
+          <div>Aktibong Model: <strong id="loadingModelName" class="text-dark">-</strong></div>
+          <div>Nagamit na API Calls (Rate Limit Tracker): <strong id="loadingApiUsage" class="text-dark">0</strong> beses ngayong sesyon</div>
+        </div>
+
+        <!-- Cooldown Notice -->
+        <div id="cooldownNotice" class="alert alert-warning mt-3 d-none">
+          <i class="bi bi-clock-history me-1"></i>
+          Na-limit ang lahat ng AI models. Maghihintay ng <strong id="cooldownTimer">60</strong> segundo bago sumubok ulit...
+        </div>
+      </div>
+
+      <!-- ================= API KEY PROMPT CONTAINER ================= -->
+      <div id="apiKeyContainer" class="card quiz-card p-4 text-center d-none">
+        <i class="bi bi-key-fill text-primary display-4 mb-3"></i>
+        <h4 class="fw-bold">Ilagay ang iyong Gemini API Key</h4>
+        <p class="text-muted small mb-3">
+          Kailangan ito para makapag-generate ng totoong AI exam questions nang <b>LIBRE</b>.
+        </p>
+        <div class="mb-3">
+          <input type="password" id="apiKeyInput" class="form-control form-control-lg text-center" placeholder="I-paste dito ang AI Studio Key...">
+        </div>
+        <button class="btn btn-primary btn-lg w-100 fw-bold py-3" onclick="saveApiKey()">
+          I-save at Simulan ang AI Quiz
+        </button>
+        <small class="text-muted d-block mt-3">
+          Wala ka pang Key? Kumuha ng libre sa <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
+        </small>
       </div>
 
       <!-- ================= QUIZ CONTAINER ================= -->
       <div id="quizContainer" class="card quiz-card p-4 d-none">
         
-        <!-- Header Info & Export PDF -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <span class="badge-info-pill" id="modeTag">Mode: Offline JS Parser</span>
+        <!-- Header Info & Quick Print/PDF Button -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="badge-info-pill" id="difficultyTag">Difficulty: Easy</span>
           
           <div class="d-flex align-items-center gap-2">
             <button class="btn btn-sm btn-outline-success fw-bold" onclick="exportQuizToPdf()" title="I-download ang Quiz sa PDF">
@@ -112,11 +178,17 @@
           </div>
         </div>
 
-        <!-- Progress Bar -->
+        <!-- AI Model & Limit Badge Bar -->
+        <div class="d-flex justify-content-between align-items-center bg-light px-3 py-2 rounded-3 mb-3 text-secondary" style="font-size: 0.8rem;">
+          <span><i class="bi bi-cpu-fill text-primary me-1"></i>Model: <strong id="activeModelDisplay" class="text-dark">-</strong></span>
+          <span><i class="bi bi-speedometer2 text-info me-1"></i>API Usage/Limit Count: <strong id="apiUsageDisplay" class="text-dark">0</strong></span>
+        </div>
+
+        <!-- Progress Bar & Detailed Score -->
         <div class="mb-3">
           <div class="d-flex justify-content-between text-muted small fw-semibold mb-1">
             <span id="questionTracker">Question 1 of 5</span>
-            <span>Score: <span id="currentScore">0</span></span>
+            <span class="text-primary fw-bold">Correct Score: <span id="currentScore">0</span> / <span id="totalAnsweredDisplay">0</span> (<span id="currentPercentage">0%</span>)</span>
           </div>
           <div class="progress" style="height: 10px; border-radius: 10px;">
             <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;"></div>
@@ -145,7 +217,7 @@
         <div class="my-3">
           <i class="bi bi-award-fill text-primary display-1"></i>
         </div>
-        <h3 class="fw-bold mb-1">Tapos na ang Exam!</h3>
+        <h3 class="fw-bold mb-1">Tapos na ang AI Exam!</h3>
         <p class="text-muted mb-4">Narito ang resulta ng iyong pagsasanay:</p>
 
         <!-- Final Score Display -->
@@ -163,10 +235,13 @@
         <!-- Action Buttons -->
         <div class="d-grid gap-2">
           <button class="btn btn-primary btn-lg fw-bold py-3" onclick="restartQuiz()">
-            <i class="bi bi-arrow-counterclockwise me-2"></i>Ulitin ang Quiz
+            <i class="bi bi-arrow-counterclockwise me-2"></i>Ulitin ang Quiz (Panibagong Tanong)
           </button>
           <button class="btn btn-success btn-lg fw-bold py-3" onclick="exportQuizToPdf()">
             <i class="bi bi-file-earmark-pdf-fill me-2"></i>I-download ang Quiz (PDF)
+          </button>
+          <button class="btn btn-outline-danger btn-lg fw-bold py-3" onclick="resetQuestionHistory()">
+            <i class="bi bi-trash me-2"></i>I-clear ang History ng mga Tanong
           </button>
           <a href="index.html" class="btn btn-outline-secondary btn-lg fw-bold py-3">
             <i class="bi bi-upload me-2"></i>Mag-upload ng Bagong File
@@ -178,20 +253,32 @@
   </div>
 </div>
 
-<!-- PRINTABLE CONTAINER FOR PDF -->
+<!-- PRINTABLE CONTAINER -->
 <div id="printArea"></div>
 
 <script>
+  // Listahan ng AI Models para sa Auto-Fallback engine
+  const AVAILABLE_MODELS = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash"
+  ];
+
   let quizConfig = null;
   let questions = [];
   let currentQuestionIndex = 0;
   let score = 0;
   let highScore = 0;
 
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
   document.addEventListener("DOMContentLoaded", () => {
     const storedConfig = localStorage.getItem("quiz_config");
     highScore = parseInt(localStorage.getItem("quiz_high_score") || "0");
+
     document.getElementById("highScoreDisplay").innerText = highScore;
+    updateApiUsageDisplay();
 
     if (!storedConfig) {
       alert("Walang nahanap na uploaded file. Babalik sa upload screen.");
@@ -200,99 +287,186 @@
     }
 
     quizConfig = JSON.parse(storedConfig);
-    
-    // Generate Quiz gamit ang Rule-Based JS Parser
-    setTimeout(() => {
-      generateLocalQuestions(quizConfig.textData, quizConfig.count || 5);
-    }, 500);
+    document.getElementById("difficultyTag").innerText = "Difficulty: " + capitalize(quizConfig.difficulty);
+
+    const savedApiKey = localStorage.getItem("gemini_api_key");
+    if (!savedApiKey) {
+      document.getElementById("loadingContainer").classList.add("d-none");
+      document.getElementById("apiKeyContainer").classList.remove("d-none");
+    } else {
+      generateAiQuiz(savedApiKey);
+    }
   });
 
-  // LOCAL JS PARSER ENGINE (NO AI)
-  function generateLocalQuestions(rawText, targetCount) {
-    const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 5);
-    let extractedPairs = [];
-
-    lines.forEach(line => {
-      // Pattern 1: Term : Definition O Term - Definition
-      let match = line.match(/^([^:-]+)[:\-]\s*(.+)$/);
-      if (match) {
-        let term = match[1].replace(/^\d+[\.\)]\s*/, '').trim();
-        let def = match[2].trim();
-        if (term.length > 1 && def.length > 3) {
-          extractedPairs.push({ term: term, definition: def });
-        }
-      } else {
-        // Pattern 2: "Term is/are Definition"
-        let isMatch = line.match(/^(.+?)\s+(is|are|refers to)\s+(.+)$/i);
-        if (isMatch) {
-          let term = isMatch[1].replace(/^\d+[\.\)]\s*/, '').trim();
-          let def = isMatch[3].trim();
-          if (term.length > 1 && term.split(' ').length <= 4) {
-            extractedPairs.push({ term: term, definition: `${isMatch[2]} ${def}` });
-          }
-        }
-      }
-    });
-
-    if (extractedPairs.length < 2) {
-      alert("Masyadong kaunti ang ma-parse na Terms/Definitions sa file.\n\nTips: Siguraduhing may format na 'Term : Definition' o 'Term - Definition' ang mga linya sa iyong reviewer.");
-      window.location.href = "index.html";
+  function saveApiKey() {
+    const keyInput = document.getElementById("apiKeyInput").value.trim();
+    if (!keyInput) {
+      alert("Paki-lagay ang iyong Gemini API Key.");
       return;
     }
+    localStorage.setItem("gemini_api_key", keyInput);
+    document.getElementById("apiKeyContainer").classList.add("d-none");
+    document.getElementById("loadingContainer").classList.remove("d-none");
+    generateAiQuiz(keyInput);
+  }
 
-    // Shuffle pairs
-    extractedPairs = extractedPairs.sort(() => Math.random() - 0.5);
+  function getApiUsageCount() {
+    return parseInt(localStorage.getItem("ai_api_call_count") || "0");
+  }
 
-    const allTerms = extractedPairs.map(p => p.term);
-    const allDefs = extractedPairs.map(p => p.definition);
+  function incrementApiUsageCount() {
+    let count = getApiUsageCount() + 1;
+    localStorage.setItem("ai_api_call_count", count);
+    updateApiUsageDisplay();
+  }
 
-    let generatedQuestions = [];
-    const limit = Math.min(targetCount, extractedPairs.length);
+  function updateApiUsageDisplay() {
+    const count = getApiUsageCount();
+    const usageEl1 = document.getElementById("loadingApiUsage");
+    const usageEl2 = document.getElementById("apiUsageDisplay");
+    if (usageEl1) usageEl1.innerText = count;
+    if (usageEl2) usageEl2.innerText = count;
+  }
 
-    for (let i = 0; i < limit; i++) {
-      const currentPair = extractedPairs[i];
-      const isReverse = Math.random() > 0.5; // Alternate between Term->Def and Def->Term
+  // AI Generation Function na may Multi-Model Auto-Fallback & Cooldown Logic
+  async function generateAiQuiz(apiKey) {
+    let usedQuestions = JSON.parse(localStorage.getItem("used_questions") || "[]");
 
-      let questionStr = "";
-      let correctAnswer = "";
-      let wrongPool = [];
-
-      if (isReverse) {
-        questionStr = `What term matches this definition: "${currentPair.definition}"?`;
-        correctAnswer = currentPair.term;
-        wrongPool = allTerms.filter(t => t !== correctAnswer);
-      } else {
-        questionStr = `What is the definition/meaning of "${currentPair.term}"?`;
-        correctAnswer = currentPair.definition;
-        wrongPool = allDefs.filter(d => d !== correctAnswer);
-      }
-
-      // Select 3 random wrong options
-      wrongPool = wrongPool.sort(() => Math.random() - 0.5);
-      let options = wrongPool.slice(0, 3);
-      options.push(correctAnswer);
-      options = options.sort(() => Math.random() - 0.5);
-
-      generatedQuestions.push({
-        question: questionStr,
-        options: options,
-        answer: correctAnswer
-      });
+    if (usedQuestions.length > 30) {
+      usedQuestions = [];
+      localStorage.setItem("used_questions", JSON.stringify([]));
     }
 
-    questions = generatedQuestions;
-    document.getElementById("loadingContainer").classList.add("d-none");
-    document.getElementById("quizContainer").classList.remove("d-none");
-    showQuestion();
+    const avoidListText = usedQuestions.length > 0 
+      ? `DO NOT ask questions that are conceptually identical to these previously asked questions:\n- ${usedQuestions.slice(-15).join('\n- ')}` 
+      : "No previous questions to avoid yet.";
+
+    const promptText = `
+You are an expert exam creator. Analyze the provided reviewer content and generate exactly ${quizConfig.count} NEW and UNIQUE multiple-choice questions.
+
+DIFFICULTY LEVEL: ${quizConfig.difficulty}
+LANGUAGE: Use the same language as the context (Filipino, English, or Taglish).
+
+TYPES OF QUESTIONS TO MIX IN INCLUDE:
+1. Definition / Terms ("What term refers to...", "Which of the following defines...")
+2. Historical Dates / Years / Milestones (e.g., "In what year...", "When did...", "Which event occurred in...") if applicable to the content.
+3. Functional / Conceptual Questions ("What is the primary function of...", "Which statement is true...")
+
+CRITICAL UNIQUE CONSTRAINT:
+${avoidListText}
+
+STRICT INSTRUCTIONS:
+- Generate fresh questions focusing on different concepts/terms/dates in the reviewer text.
+- Provide 4 distinct, plausible options per question.
+- Return ONLY a valid raw JSON array of objects. Do not use Markdown formatting or codeblocks (\`\`\`json).
+
+JSON Format Required:
+[
+  {
+    "question": "Question text here?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "answer": "Option A"
+  }
+]
+
+Reviewer Content:
+${quizConfig.textData.substring(0, 15000)}
+`;
+
+    for (let i = 0; i < AVAILABLE_MODELS.length; i++) {
+      const currentModel = AVAILABLE_MODELS[i];
+      
+      document.getElementById("loadingStatusText").innerText = `Binabasa ng AI (${currentModel}) ang iyong Reviewer...`;
+      const modelNameEl = document.getElementById("loadingModelName");
+      if (modelNameEl) modelNameEl.innerText = currentModel;
+
+      try {
+        incrementApiUsageCount();
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: { temperature: 0.85 }
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          if (data.error.code === 429 || data.error.status === "RESOURCE_EXHAUSTED" || (data.error.message && data.error.message.includes("high demand"))) {
+            console.warn(`Quota limit reached for ${currentModel}. Lilipat sa susunod na model...`);
+            continue;
+          }
+
+          if (data.error.code === 400 || data.error.status === "INVALID_ARGUMENT") {
+            alert("Mali ang naipasa mong API Key.");
+            localStorage.removeItem("gemini_api_key");
+            location.reload();
+            return;
+          }
+
+          throw new Error(data.error.message);
+        }
+
+        let rawText = data.candidates[0].content.parts[0].text.trim();
+        rawText = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+
+        questions = JSON.parse(rawText);
+
+        const currentQTexts = questions.map(q => q.question);
+        const updatedHistory = [...usedQuestions, ...currentQTexts];
+        localStorage.setItem("used_questions", JSON.stringify(updatedHistory));
+
+        document.getElementById("activeModelDisplay").innerText = currentModel;
+
+        document.getElementById("loadingContainer").classList.add("d-none");
+        document.getElementById("quizContainer").classList.remove("d-none");
+        showQuestion();
+        return;
+
+      } catch (err) {
+        console.error(`Error sa model ${currentModel}:`, err);
+      }
+    }
+
+    startCooldownTimer(60, apiKey);
+  }
+
+  function startCooldownTimer(seconds, apiKey) {
+    const cooldownNotice = document.getElementById("cooldownNotice");
+    const timerDisplay = document.getElementById("cooldownTimer");
+    cooldownNotice.classList.remove("d-none");
+
+    let remaining = seconds;
+    timerDisplay.innerText = remaining;
+
+    const interval = setInterval(() => {
+      remaining--;
+      timerDisplay.innerText = remaining;
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        cooldownNotice.classList.add("d-none");
+        generateAiQuiz(apiKey);
+      }
+    }, 1000);
   }
 
   function showQuestion() {
     const q = questions[currentQuestionIndex];
-    const total = questions.length;
 
-    document.getElementById("progressBar").style.width = ((currentQuestionIndex) / total) * 100 + "%";
+    const total = questions.length;
+    const progressPercent = ((currentQuestionIndex) / total) * 100;
+    document.getElementById("progressBar").style.width = progressPercent + "%";
     document.getElementById("questionTracker").innerText = `Question ${currentQuestionIndex + 1} of ${total}`;
+    
     document.getElementById("currentScore").innerText = score;
+    document.getElementById("totalAnsweredDisplay").innerText = currentQuestionIndex;
+    const currentPercent = currentQuestionIndex > 0 ? Math.round((score / currentQuestionIndex) * 100) : 0;
+    document.getElementById("currentPercentage").innerText = currentPercent + "%";
+
     document.getElementById("questionText").innerText = q.question;
 
     const optionsContainer = document.getElementById("optionsContainer");
@@ -313,18 +487,22 @@
     const allButtons = document.querySelectorAll(".option-btn");
     allButtons.forEach(btn => btn.disabled = true);
 
-    if (selectedOpt.trim() === correctOpt.trim()) {
+    if (selectedOpt.trim().toLowerCase() === correctOpt.trim().toLowerCase()) {
       selectedBtn.classList.add("correct");
       score++;
-      document.getElementById("currentScore").innerText = score;
     } else {
       selectedBtn.classList.add("wrong");
       allButtons.forEach(btn => {
-        if (btn.innerText.trim() === correctOpt.trim()) {
+        if (btn.innerText.trim().toLowerCase() === correctOpt.trim().toLowerCase()) {
           btn.classList.add("correct");
         }
       });
     }
+
+    document.getElementById("currentScore").innerText = score;
+    document.getElementById("totalAnsweredDisplay").innerText = currentQuestionIndex + 1;
+    const updatedPercent = Math.round((score / (currentQuestionIndex + 1)) * 100);
+    document.getElementById("currentPercentage").innerText = updatedPercent + "%";
 
     document.getElementById("nextBtn").classList.remove("d-none");
   }
@@ -362,21 +540,28 @@
     document.getElementById("loadingContainer").classList.remove("d-none");
     document.getElementById("newHighScoreAlert").classList.add("d-none");
 
-    setTimeout(() => {
-      generateLocalQuestions(quizConfig.textData, quizConfig.count || 5);
-    }, 400);
+    const savedApiKey = localStorage.getItem("gemini_api_key");
+    generateAiQuiz(savedApiKey);
+  }
+
+  function resetQuestionHistory() {
+    localStorage.removeItem("used_questions");
+    alert("Nareset na ang history ng mga tanong! Muling magiging fresh ang pagpili.");
   }
 
   function exportQuizToPdf() {
-    if (!questions || questions.length === 0) return;
+    if (!questions || questions.length === 0) {
+      alert("Walang available na quiz questions para i-download.");
+      return;
+    }
 
     const printContainer = document.getElementById("printArea");
     const labels = ["a", "b", "c", "d"];
 
     let htmlContent = `
       <div class="pdf-header">
-        <h2 style="margin: 0;">Offline Quiz Reviewer</h2>
-        <p style="margin: 5px 0 0 0; font-size: 13px;">Total Questions: ${questions.length}</p>
+        <h2 style="margin: 0;">AI Generated Quiz Reviewer</h2>
+        <p style="margin: 5px 0 0 0; font-size: 13px;">Difficulty: ${capitalize(quizConfig.difficulty)} | Total Questions: ${questions.length}</p>
       </div>
     `;
 
@@ -401,6 +586,10 @@
 
     printContainer.innerHTML = htmlContent;
     window.print();
+  }
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 </script>
 
