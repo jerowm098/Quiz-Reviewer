@@ -166,7 +166,11 @@
         
         <!-- Header Info & Quick Print/PDF Button -->
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <span class="badge-info-pill" id="difficultyTag">Difficulty: Easy</span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge-info-pill" id="difficultyTag">Difficulty: Easy</span>
+            <!-- Bagong Language Indicator Tag -->
+            <span class="badge-info-pill bg-light text-dark border" id="languageTag">Language: Tagalog</span>
+          </div>
           
           <div class="d-flex align-items-center gap-2">
             <button class="btn btn-sm btn-outline-success fw-bold" onclick="exportQuizToPdf()" title="I-download ang Quiz sa PDF">
@@ -288,6 +292,10 @@
 
     quizConfig = JSON.parse(storedConfig);
     document.getElementById("difficultyTag").innerText = "Difficulty: " + capitalize(quizConfig.difficulty);
+    
+    // Ipakita ang piniling wika sa taas
+    const langDisplay = quizConfig.language ? capitalize(quizConfig.language) : "Tagalog";
+    document.getElementById("languageTag").innerText = "Language: " + langDisplay;
 
     const savedApiKey = localStorage.getItem("gemini_api_key");
     if (!savedApiKey) {
@@ -341,11 +349,16 @@
       ? `DO NOT ask questions that are conceptually identical to these previously asked questions:\n- ${usedQuestions.slice(-15).join('\n- ')}` 
       : "No previous questions to avoid yet.";
 
+    const langChoice = (quizConfig.language || 'english').toLowerCase();
+    const languageInstruction = langChoice.includes('tagalog') || langChoice.includes('taglish') || langChoice.includes('filipino')
+      ? 'Tagalog o Taglish' 
+      : 'English';
+
     const promptText = `
 You are an expert exam creator. Analyze the provided reviewer content and generate exactly ${quizConfig.count} NEW and UNIQUE multiple-choice questions.
 
 DIFFICULTY LEVEL: ${quizConfig.difficulty}
-LANGUAGE: Use the same language as the context (Filipino, English, or Taglish).
+LANGUAGE: Write all questions, options, and explanations strictly in ${languageInstruction}.
 
 TYPES OF QUESTIONS TO MIX IN INCLUDE:
 1. Definition / Terms ("What term refers to...", "Which of the following defines...")
@@ -561,7 +574,7 @@ ${quizConfig.textData.substring(0, 15000)}
     let htmlContent = `
       <div class="pdf-header">
         <h2 style="margin: 0;">AI Generated Quiz Reviewer</h2>
-        <p style="margin: 5px 0 0 0; font-size: 13px;">Difficulty: ${capitalize(quizConfig.difficulty)} | Total Questions: ${questions.length}</p>
+        <p style="margin: 5px 0 0 0; font-size: 13px;">Difficulty: ${capitalize(quizConfig.difficulty)} | Language: ${capitalize(quizConfig.language)} | Total Questions: ${questions.length}</p>
       </div>
     `;
 
@@ -589,6 +602,7 @@ ${quizConfig.textData.substring(0, 15000)}
   }
 
   function capitalize(str) {
+    if (!str) return "";
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 </script>

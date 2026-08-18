@@ -60,19 +60,19 @@
           <span class="badge-high-score fw-bold">
             <i class="bi bi-trophy-fill me-1"></i>High Score: <span id="displayHighScore">0</span>
           </span>
+
         </div>
         <p class="text-muted small mb-4">I-upload ang iyong reviewer file (PPTX, PDF, TXT, DOCX, atbp.) at pumili ng settings para makapag-generate ng quiz.</p>
 
         <form id="setupForm">
           
-          <!-- File Upload Section (Tumatanggap ng Kahit Anong File) -->
+          <!-- File Upload Section -->
           <div class="mb-4">
             <label class="form-label fw-bold">1. Upload Reviewer File</label>
             <div class="upload-box" onclick="document.getElementById('fileInput').click();">
               <i class="bi bi-cloud-arrow-up-fill display-5 text-primary"></i>
               <p class="mb-1 mt-2 fw-semibold" id="fileNameDisplay">Pumili o i-drop ang kahit anong file dito</p>
               <small class="text-muted">Suportado: PPTX, PDF, TXT, DOCX, at iba pa</small>
-              <!-- Inalis ang restriction sa accept attribute para tanggapin ang anumang file -->
               <input type="file" id="fileInput" class="d-none" required>
             </div>
           </div>
@@ -98,6 +98,16 @@
               <option value="hard">Hard</option>
               <option value="difficult">Difficult</option>
               <option value="expert">Expert</option>
+            </select>
+          </div>
+
+          <!-- Language Selection Choice (Updated) -->
+          <div class="mb-4">
+            <label for="quizLanguage" class="form-label fw-bold">4. Wika ng Quiz (Language)</label>
+            <select class="form-select form-select-lg" id="quizLanguage">
+              <option value="tagalog" selected>Tagalog</option>
+              <option value="taglish">Taglish</option>
+              <option value="english">English</option>
             </select>
           </div>
 
@@ -145,7 +155,6 @@
       } else if (extension === "pptx") {
         extractedText = await parsePPTX(file);
       } else {
-        // Fallback para sa iba pang text-based o hindi kilalang file types
         extractedText = await file.text();
       }
     } catch (err) {
@@ -155,7 +164,6 @@
     }
   });
 
-  // Extract text mula sa PDF
   async function parsePDF(file) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -169,7 +177,6 @@
     return textContent;
   }
 
-  // Extract text mula sa PowerPoint (.pptx) gamit ang JSZip
   async function parsePPTX(file) {
     const zip = await JSZip.loadAsync(file);
     let slideText = "";
@@ -192,7 +199,6 @@
     return slideText;
   }
 
-  // Handle Form Submission
   document.getElementById("setupForm").addEventListener("submit", (e) => {
     e.preventDefault();
 
@@ -203,11 +209,13 @@
 
     const questionCount = document.getElementById("questionCount").value;
     const difficulty = document.getElementById("difficultyLevel").value;
+    const language = document.getElementById("quizLanguage").value;
 
     const quizConfig = {
       textData: extractedText,
       count: parseInt(questionCount),
-      difficulty: difficulty
+      difficulty: difficulty,
+      language: language
     };
 
     localStorage.setItem("quiz_config", JSON.stringify(quizConfig));
