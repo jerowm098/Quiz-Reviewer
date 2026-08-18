@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Optimized para sa mobile screens -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Quiz Reviewer - Setup</title>
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+  <style>
+    body {
+      background-color: #f4f6f9;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .setup-card {
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      background: #ffffff;
+    }
+    .upload-box {
+      border: 2px dashed #0d6efd;
+      border-radius: 12px;
+      background-color: #f8f9fa;
+      padding: 25px 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .upload-box:hover {
+      background-color: #e9ecef;
+    }
+    .badge-high-score {
+      background-color: #ffe69c;
+      color: #664d03;
+      font-size: 0.9rem;
+      padding: 8px 14px;
+      border-radius: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+      
+      <!-- Main Card -->
+      <div class="card setup-card p-4">
+        
+        <!-- Header & High Score -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h4 class="fw-bold mb-0 text-primary">
+            <i class="bi bi-journal-check me-2"></i>Quiz Generator
+          </h4>
+          <span class="badge-high-score fw-bold">
+            <i class="bi bi-trophy-fill me-1"></i>High Score: <span id="displayHighScore">0</span>
+          </span>
+        </div>
+        <p class="text-muted small mb-4">I-upload ang iyong reviewer file (PPTX, PDF, TXT, DOCX, atbp.) at pumili ng settings para makapag-generate ng quiz.</p>
+
+        <form id="setupForm">
+          
+          <!-- File Upload Section (Tumatanggap ng Kahit Anong File) -->
+          <div class="mb-4">
+            <label class="form-label fw-bold">1. Upload Reviewer File</label>
+            <div class="upload-box" onclick="document.getElementById('fileInput').click();">
+              <i class="bi bi-cloud-arrow-up-fill display-5 text-primary"></i>
+              <p class="mb-1 mt-2 fw-semibold" id="fileNameDisplay">Pumili o i-drop ang kahit anong file dito</p>
+              <small class="text-muted">Suportado: PPTX, PDF, TXT, DOCX, at iba pa</small>
+              <!-- Inalis ang restriction sa accept attribute para tanggapin ang anumang file -->
+              <input type="file" id="fileInput" class="d-none" required>
+            </div>
+          </div>
+
+          <!-- Question Count Selection -->
+          <div class="mb-4">
+            <label for="questionCount" class="form-label fw-bold">2. Bilang ng Questions</label>
+            <select class="form-select form-select-lg" id="questionCount">
+              <option value="5" selected>5 Questions</option>
+              <option value="10">10 Questions</option>
+              <option value="20">20 Questions</option>
+              <option value="50">50 Questions</option>
+              <option value="100">100 Questions</option>
+            </select>
+          </div>
+
+          <!-- Difficulty Level Selection -->
+          <div class="mb-4">
+            <label for="difficultyLevel" class="form-label fw-bold">3. Difficulty Level</label>
+            <select class="form-select form-select-lg" id="difficultyLevel">
+              <option value="easy" selected>Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+              <option value="difficult">Difficult</option>
+              <option value="expert">Expert</option>
+            </select>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold py-3" id="submitBtn">
+            <i class="bi bi-play-circle-fill me-2"></i>Generate Quiz
+          </button>
+
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Libraries para sa PDF at PPTX parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+  let extractedText = "";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const savedHighScore = localStorage.getItem("quiz_high_score") || 0;
+    document.getElementById("displayHighScore").innerText = savedHighScore;
+  });
+
+  const fileInput = document.getElementById("fileInput");
+  const fileNameDisplay = document.getElementById("fileNameDisplay");
+
+  fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    fileNameDisplay.innerText = file.name;
+    const extension = file.name.split('.').pop().toLowerCase();
+
+    try {
+      if (extension === "txt") {
+        extractedText = await file.text();
+      } else if (extension === "pdf") {
+        extractedText = await parsePDF(file);
+      } else if (extension === "pptx") {
+        extractedText = await parsePPTX(file);
+      } else {
+        // Fallback para sa iba pang text-based o hindi kilalang file types
+        extractedText = await file.text();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Nabasang file ngunit may babala: Pipiliting kunin ang plain text mula sa file.");
+      extractedText = await file.text();
+    }
+  });
+
+  // Extract text mula sa PDF
+  async function parsePDF(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let textContent = "";
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const text = await page.getTextContent();
+      textContent += text.items.map(item => item.str).join(" ") + "\n";
+    }
+    return textContent;
+  }
+
+  // Extract text mula sa PowerPoint (.pptx) gamit ang JSZip
+  async function parsePPTX(file) {
+    const zip = await JSZip.loadAsync(file);
+    let slideText = "";
+
+    const slideFiles = Object.keys(zip.files).filter(fileName => 
+      fileName.startsWith("ppt/slides/slide") && fileName.endsWith(".xml")
+    );
+
+    for (const slidePath of slideFiles) {
+      const xmlString = await zip.files[slidePath].async("text");
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+      const textNodes = xmlDoc.querySelectorAll("a\\:t, t");
+      
+      textNodes.forEach(node => {
+        slideText += node.textContent + " ";
+      });
+      slideText += "\n";
+    }
+    return slideText;
+  }
+
+  // Handle Form Submission
+  document.getElementById("setupForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    if (!extractedText.trim()) {
+      alert("Mangyaring mag-upload muna ng may lamang reviewer file.");
+      return;
+    }
+
+    const questionCount = document.getElementById("questionCount").value;
+    const difficulty = document.getElementById("difficultyLevel").value;
+
+    const quizConfig = {
+      textData: extractedText,
+      count: parseInt(questionCount),
+      difficulty: difficulty
+    };
+
+    localStorage.setItem("quiz_config", JSON.stringify(quizConfig));
+    window.location.href = "quiz.html";
+  });
+</script>
+
+</body>
+</html>
